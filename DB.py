@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Feb 22 19:18:00 2020
-
+Two kinds of data storage
+    'DataBuffer'  store data until being cleared
+    'RingBuffer'  store the latest n data points
 @author: jingh
 """
 
