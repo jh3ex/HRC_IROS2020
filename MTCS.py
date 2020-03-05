@@ -2,6 +2,8 @@
 """
 Created on Wed Feb 19 22:50:30 2020
 
+Monte Carlo Tree Search for HRC assembly
+
 @author: jingh
 """
 
@@ -15,14 +17,14 @@ from VIS import Visualization
 
 class MonteCarloTreeSearch():
     def __init__(self, MaxDepth, MaxSearches, MaxIters, c_puct, atask, robot_net, human_net, switch, tau, data_size):
-        assert switch > 0
+        
         
         self.MaxDepth = MaxDepth
         self.MaxIters = MaxIters
         self.MaxSearches = MaxSearches
         
         self.atask = atask  # Assembly tree object 'AssembleTask'
-        self.c_puct = c_puct
+        self.c_puct = c_puct  # Parameter for UCT
         self.tau = tau  # Temperature parameter
         
         # Neural network for human and robot agent
@@ -31,17 +33,21 @@ class MonteCarloTreeSearch():
         self.robot_net = robot_net
         
         # Buffer for storing training data
+        # We use ring buffer
         self.human_data = RingBuffer(data_size)
         self.robot_data = RingBuffer(data_size)
         
         # Switch: training scheme
         #         0: training simultaneously
         #        >0: swtich training agent every 'switch' iterations
+        assert switch >= 0
         self.switch =switch
         
     
     
     def mixed_iterations(self):
+        # A sequential training scheme is adopted
+        # for multi-agent RL
         
         for i in range(self.MaxIters):
             # Let robot search first
@@ -50,22 +56,15 @@ class MonteCarloTreeSearch():
 #            self.mixed_simulation(create_video=False)
             for j in range(self.switch):
                 self.robot_iterations(mixed=True)
-                completion_time, computing_time = self.mixed_simulation(create_video=True)
-                assert completion_time != 95, "95 Recached!!!!"
-                    
-            
+#                completion_time, computing_time = self.mixed_simulation(create_video=True)
+
             for j in range(self.switch):
                 self.human_iterations(mixed=True)
-                completion_time, computing_time = self.mixed_simulation(create_video=True)
-                assert completion_time != 95, "95 Recached!!!!"
-            
-#            if i % 5 == 0:
-#                self.mixed_simulation(create_video=False)
-            
+#                completion_time, computing_time = self.mixed_simulation(create_video=True)
+
         
     def human_iterations(self, mixed=False):
-        
-#        bar = Bar('Running Iterations', max=self.MaxIters)
+        # Train the human agent only
         
         if mixed:
             MaxIters = self.switch
@@ -75,7 +74,7 @@ class MonteCarloTreeSearch():
         for i in range(MaxIters):
 #            print('Iterrations: ', i)
             state = copy.deepcopy(self.atask.tree)
-#            bar.next()
+
             while True:
                 
                 _, _, state, _, terminal, _ = self.human_search(state)
@@ -85,13 +84,11 @@ class MonteCarloTreeSearch():
             
             state, action_mask, value, policy = self.human_data.get_data()
             self.human_net.fit(state, action_mask, value, policy)
-#            self.simulation(create_video=False)    
-#        bar.finish()
+
             
         
     def robot_iterations(self, mixed=False):
-        
-#        bar = Bar('Running Iterations', max=self.MaxIters)
+        # Train the robot agent only
         
         if mixed:
             MaxIters = self.switch
@@ -101,7 +98,6 @@ class MonteCarloTreeSearch():
         for i in range(MaxIters):
 #            print('Iterrations: ', i)
             state = copy.deepcopy(self.atask.tree)
-#            bar.next()
             while True:
                 
                 _, _, state, _, terminal, _ = self.robot_search(state)
@@ -112,8 +108,6 @@ class MonteCarloTreeSearch():
             
             state, action_mask, value, policy = self.robot_data.get_data()
             self.robot_net.fit(state, action_mask, value, policy)
-#            self.simulation(create_video=False)    
-#        bar.finish()
             
 
     def create_edge(self, parent, action, P, robot):
@@ -139,6 +133,10 @@ class MonteCarloTreeSearch():
         
         
     def create_node(self, state, robot):
+        # Create the node structure
+        #   'state'  State tensor for current node
+        #   'actions'  All the eligible actions given current state
+        #   'edge'  All the edges from current node
         s = copy.deepcopy(state)
         
         alist = self.atask.available_action(state, robot)
@@ -150,7 +148,7 @@ class MonteCarloTreeSearch():
         
         edges = [self.create_edge(s, x, policy[x], robot) for x in alist]
         
-        # Create the node structure
+        # Create the node structure in a dict
         new_node = {'state': s,
                     'actions': alist,
                     'edge': edges}
@@ -559,7 +557,7 @@ class MonteCarloTreeSearch():
     
         
     def puct(self, Q, N, P, alist):
-        
+        # Calculate the UCT
         uct = np.zeros(len(alist))
         
         for i in range(len(alist)):
@@ -619,8 +617,6 @@ class MonteCarloTreeSearch():
         
     def mixed_simulation(self, MaxSearches=None, create_video=True):
         # See if we need to adjust MaxSearches during test time
-        
-        
         # In case one wants to change the max search during test time
         if MaxSearches is not None:
             temp = copy.deepcopy(self.MaxSearches)
@@ -690,7 +686,7 @@ class MonteCarloTreeSearch():
     
     
     def make_video(self, state, completion_time, step, robot, create_video, action=None):
-        
+        # Make video for the assembly process
         if create_video:
             
             title = 'Step: ' + str(step) +' || Elapsed Time: ' + str(completion_time)
@@ -699,6 +695,7 @@ class MonteCarloTreeSearch():
             
     
     def is_terminal(self, state):
+        # To determine if current state is terminal
         terminal = (state == -2).all()
         
         return terminal
