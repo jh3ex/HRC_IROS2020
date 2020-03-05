@@ -2,6 +2,10 @@
 """
 Created on Sat Feb 22 20:01:51 2020
 
+Visualiztion of the assembly process
+    1. show images of the assembly status
+    2. store images and create video if needed
+
 @author: jingh
 """
 
