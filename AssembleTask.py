@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Feb 18 10:18:47 2020
-
+The chessboard game simulator
+    1. Read assembly task from file
+    2. Initialize the chessboard
+    3. Find the next state given one action
 @author: Manufacturing
 """
 
