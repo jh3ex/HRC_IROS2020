@@ -2,6 +2,8 @@
 """
 Created on Sun Feb 23 19:37:23 2020
 
+Generate a random assembly task
+
 @author: jingh
 """
 
